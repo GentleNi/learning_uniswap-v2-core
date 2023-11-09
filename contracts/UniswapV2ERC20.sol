@@ -13,9 +13,12 @@ contract UniswapV2ERC20 is IUniswapV2ERC20 {
     mapping(address => uint) public balanceOf;
     mapping(address => mapping(address => uint)) public allowance;
 
+    //是用于不同Dapp之间区分相同结构和内容的签名消息，该值有助于用户辨识哪些为信任的dapp
     bytes32 public DOMAIN_SEPARATOR;
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
+
+    //用于记录合约中每个地址使用链下签名消息的交易数量，防止重放攻击
     mapping(address => uint) public nonces;
 
     event Approval(address indexed owner, address indexed spender, uint value);

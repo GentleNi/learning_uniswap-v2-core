@@ -12,21 +12,29 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
     using SafeMath  for uint;
     using UQ112x112 for uint224;
 
+    //定义了最小流动性，在提供初始流动性时会被燃烧掉
     uint public constant MINIMUM_LIQUIDITY = 10**3;
+    // 是用于计算ERC-20合约中转移资产的transfer对应的函数选择器
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes('transfer(address,uint256)')));
 
+    //是要用于存储factory合约地址，token0，token1分别表示两种代币的地址
     address public factory;
     address public token0;
     address public token1;
 
+    //reserve0，reserve1 分别表示最新恒定乘积中两种代币的数量
     uint112 private reserve0;           // uses single storage slot, accessible via getReserves
     uint112 private reserve1;           // uses single storage slot, accessible via getReserves
+    //记录交易时的区块创建时间
     uint32  private blockTimestampLast; // uses single storage slot, accessible via getReserves
 
+    //price0CumulativeLast，price1CumulativeLast变量用于记录交易对中两种价格的累计值
     uint public price0CumulativeLast;
     uint public price1CumulativeLast;
+    // 用于表示某一时刻恒定乘积中的积的值，主要用于开发团队手续费的计算
     uint public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
+    //表示未被锁上的状态，用于下面的修饰器
     uint private unlocked = 1;
     modifier lock() {
         require(unlocked == 1, 'UniswapV2: LOCKED');
@@ -35,12 +43,14 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         unlocked = 1;
     }
 
+    //用于获取交易对的资产数量和最近一次交易的区块时间
     function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
         _reserve0 = reserve0;
         _reserve1 = reserve1;
         _blockTimestampLast = blockTimestampLast;
     }
 
+    //此时会使用代币的call函数去调用代币合约transfer来发送代币，在这里会检查call调用是否成功以及返回值是否为true：
     function _safeTransfer(address token, address to, uint value) private {
         (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));
         require(success && (data.length == 0 || abi.decode(data, (bool))), 'UniswapV2: TRANSFER_FAILED');
@@ -69,6 +79,23 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         token1 = _token1;
     }
 
+    /**
+     * 
+     * @param balance0 
+     * @param balance1 
+     * @param _reserve0 
+     * @param _reserve1 
+     * require 用于验证 balance0 和 blanace1 是否 uint112 的上限
+
+        blockTimestamp只取后32位
+
+        timeElapsed 计算当前区块和上一个区块之间的时间差
+
+        if语句是要时间差（两个区块的时间差，不是同一个区块）大于0并且两种资产的数量不为0，才可以进行价格累计计算，如果是同一个区块的第二笔交易及以后的交易，timeElapsed则为0，此时不会计算价格累计值。
+
+        更新 reserve0 和 reserve1；同时更新block时间为当前 blockTimestampLast 时间，之后通过emit触发同步事件：
+
+     */
     // update reserves and, on the first call per block, price accumulators
     function _update(uint balance0, uint balance1, uint112 _reserve0, uint112 _reserve1) private {
         require(balance0 <= uint112(-1) && balance1 <= uint112(-1), 'UniswapV2: OVERFLOW');
