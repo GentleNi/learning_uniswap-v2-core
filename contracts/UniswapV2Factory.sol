@@ -6,9 +6,9 @@ import './UniswapV2Pair.sol';
 contract UniswapV2Factory is IUniswapV2Factory {
 
     //开发者团队的地址。用于切换开发团队手续费开关，在uniswapV2中，会收取0.3%的手续费给LP，如果这里的feeTo地址是0，
-    //则表明不给开发者团队手续费，如果不为0，则开发者会收取0.05%手续费。
+    //则表明不给开发者团队手续费，如果不为0，则开发者会收取0.05%手续费。（收税地址）
     address public feeTo;
-    //用于改变开发者团队地址,有权限更改feeToSetter本身和feeTo的address
+    //用于改变开发者团队地址,有权限更改feeToSetter本身和feeTo的address（收税权限控制地址）
     address public feeToSetter;
 
     //前两个地址分别对应交易对中的两种代币地址，最后一个地址是交易对合约本身地址
@@ -51,8 +51,9 @@ contract UniswapV2Factory is IUniswapV2Factory {
         //映射存放token0和token1的地址对，方便获取
         getPair[token0][token1] = pair;
         getPair[token1][token0] = pair; // populate mapping in the reverse direction
-        //存放所有的
+        //存放所有的pair合约地址
         allPairs.push(pair);
+        //触发配对创建的事件
         emit PairCreated(token0, token1, pair, allPairs.length);
     }
 
