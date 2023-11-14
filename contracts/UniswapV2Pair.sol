@@ -178,7 +178,10 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
 
         //计算手续费(目前没开开关)
         bool feeOn = _mintFee(_reserve0, _reserve1);
+        //这里的_totalSupply是LP代币也就是总的流动性代币
         uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+
+        //计算用户能得到多少流动性代币
         if (_totalSupply == 0) {
             //第一次铸币，也就是第一次注入流动性，值为根号k减去MINIMUM_LIQUIDITY
             //如果_totalSupply为0，则说明是初次提供流动性，会根据恒定乘积公式的平方根来计算，同时要减去已经燃烧掉的初始流动性值，
@@ -212,14 +215,18 @@ contract UniswapV2Pair is IUniswapV2Pair, UniswapV2ERC20 {
         //此时用户的LP token已经被转移至合约地址，因此这里取合约地址中的LP Token余额就是等下要burn掉的量
 
         //解答：理论上合约地址是没有这个liquidity的，liquidity数值应该是提现在to地址也就是用户地址上，所以这里的liquidity值是由路由合约
-        //通过用户带过来的数值
+        //因为路由合约会先把用户的流动性代币划转到该配对合约里。
         uint liquidity = balanceOf[address(this)];
         //计算手续费给开发团队
         bool feeOn = _mintFee(_reserve0, _reserve1);
         //是存储当前已发行的LP流动性代币的总量（之所以写在feeOn后面，是因为在_mintFee()中会更新一次totalSupply值）
         uint _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+
         //分别计算用户发送的LP价值多少token0与token1
         //liquidity:用户持有的流动性  _totalSupply：池子所有的流动性
+        //提取数量 = 用户流动性 / 总流动性 * 代币总余额
+        //用户流动性除以总流动性就得出了用户在整个流动性池子里的占比是多少，再乘以代币总余额就得出用户应该分得多少代币了
+        //amount0会大于balance0，因为balance0会因为提供流动性获取到交易费奖励
         amount0 = liquidity.mul(balance0) / _totalSupply; // using balances ensures pro-rata distribution
         amount1 = liquidity.mul(balance1) / _totalSupply; // using balances ensures pro-rata distribution
         require(amount0 > 0 && amount1 > 0, 'UniswapV2: INSUFFICIENT_LIQUIDITY_BURNED');
